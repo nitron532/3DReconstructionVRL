@@ -1,3 +1,4 @@
+#Helper functions to extract ecef colmap points, convert them into enu and place into ply file
 import pycolmap
 import pymap3d as pm
 from pathlib import Path
@@ -82,4 +83,5 @@ for recon in chem_recons:
     all_xyzs.update(get_xyzs(recon))
 all_enus = ecefs_to_enus(all_xyzs, (LAT_0, LON_0, H_0))
 make_ply("./plys/chem2.ply", all_enus, "chem2")
+
 
