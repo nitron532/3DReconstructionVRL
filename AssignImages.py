@@ -1,3 +1,4 @@
+#Creates a file tying img file names with their gps coords 
 from pathlib import Path
 import pandas as pd
 from PIL import Image 
@@ -77,4 +78,5 @@ def assign_images(img_dir, points_dir, output_dir):
             _, _, altitude = transformer.transform(longitude, latitude, ellipsoidal_height)
             file.write(f"{img_name_list[idx]} {latitude} {longitude} {altitude}\n")
 # convert_imgs_to_jpg("./imgs", "./jpg_imgs")
+
 assign_images("./chem_jpg_imgs", "./chem.csv", "./chem.txt")
