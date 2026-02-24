@@ -1,4 +1,3 @@
-#Helper functions to extract ecef colmap points, convert them into enu and place into ply file
 import pycolmap
 import pymap3d as pm
 from pathlib import Path
@@ -12,7 +11,9 @@ def get_recons(proj_dir):
     """
     proj_path = Path(proj_dir)
     folder_list = [folder for folder in proj_path.iterdir() if folder.is_dir()]
+    print(folder_list)
     recon_list = [pycolmap.Reconstruction(f"{proj_dir}/{folder.name}") for folder in folder_list]
+    print(recon_list)
     return recon_list
 
 def get_point3Ds(recon):
@@ -25,34 +26,23 @@ def get_point3Ds(recon):
     point3D_list = [recon.point3D(id) for id in recon.point3D_ids()]
     return point3D_list
 
-def get_xyzs(recon):
+def point3Ds_to_enus(point3D_list, ref):
     """
     in:
-        -recon: recon obj
-    out:
-        -point3D_xyz_set: set of 3d tuples with xyz of every point in recon obj (typically in ecef after model aligning)
-    """
-    point3D_xyz_set = set()
-    for point in get_point3Ds(recon):
-        point3D_xyz_set.add(tuple(point.xyz))
-    return point3D_xyz_set
-
-def ecefs_to_enus(ecef_list, ref):
-    """
-    in:
-        -ecef_list: list of ecef tuples
+        -point3D_list: list of point3D objs
         -ref: lat/lon/alt tuple for reference
     out:
         -enu_list: list of enu tuples
     """
-    enu_list = [pm.ecef2enu(point[0], point[1], point[2], ref[0], ref[1], ref[2]) for point in ecef_list]
+    enu_list = [pm.ecef2enu(point3D.xyz[0], point3D.xyz[1], point3D.xyz[2], ref[0], ref[1], ref[2]) for point3D in point3D_list]
     return enu_list
 
-def make_ply(outputdir, pt_list, comment="none"):
+def make_ply(outputdir, point3D_list, ref, comment="none"):
     """
     in:
         -outputdir: dir for output ply including ply file name and its extension
-        -pt_list: list of 3d tuples
+        -pt_list: list of point3D objs
+        -ref: lat/lon/alt tuple for reference
     out:
         ply file will be in outputdir
     """
@@ -60,13 +50,19 @@ def make_ply(outputdir, pt_list, comment="none"):
         file.write("ply\n")
         file.write("format ascii 1.0\n")
         file.write(f"comment {comment}\n")
-        file.write(f"element vertex {len(pt_list)}\n")
+        file.write(f"element vertex {len(point3D_list)}\n")
         file.write("property float x\n")
         file.write("property float y\n")
         file.write("property float z\n")
+        #todo handle colors
+        file.write("property uchar red\n")
+        file.write("property uchar green\n")
+        file.write("property uchar blue\n")
         file.write("end_header\n")
-        for pt in pt_list:
-            file.write(f"{pt[0]} {pt[1]} {pt[2]}\n")
+        for point3D in point3D_list:
+            e, n, u = pm.ecef2enu(point3D.xyz[0], point3D.xyz[1], point3D.xyz[2], ref[0], ref[1], ref[2])
+            r, g, b = point3D.color
+            file.write(f"{e} {n} {u} {r} {g} {b}\n")
 
 #REPLACE THIS WITH THE LAT/LON/ALT THAT YOU WANT TO BE THE ORIGIN. THIS IS SOME POINT ON CAMPBELL
 LAT_0 = 34.41622191
@@ -75,13 +71,30 @@ H_0 = 15.223058115078384
 
 
 #example; change the directories, obviously
-recons = get_recons("./chem2")
-chem_recons = get_recons("./chem2")
+recons = get_recons("./recons/prior/scuffed_campbell_translock_false")
 
-all_xyzs = set()
-for recon in chem_recons:
-    all_xyzs.update(get_xyzs(recon))
-all_enus = ecefs_to_enus(all_xyzs, (LAT_0, LON_0, H_0))
-make_ply("./plys/chem2.ply", all_enus, "chem2")
+all_point3Ds = []
+for recon in recons:
+    all_point3Ds = all_point3Ds + get_point3Ds(recon)
+make_ply("./plys/scuffed_campbellprior.ply", all_point3Ds, (LAT_0, LON_0, H_0), "scuffedcampbellprior")
 
 
+
+"""
+Notes:
+Add color to points (they are in colmap point3D objs)
+Add phys sci north to recon
+Basecamp post about alignment
+"""
+"""
+Notes:
+-COLMAP find where BA ceres solver is called
+-Find implementation of BA ceres solver
+-Figure out how to lock things during BA ceres solver 
+-Apply
+"""
+
+"""
+-Find out how to incorporate azimuth and lat lon for pose priors in reconstructions
+-write script to run colmap reconstruction commands 
+"""
