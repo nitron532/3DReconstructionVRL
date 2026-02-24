@@ -54,7 +54,6 @@ def make_ply(outputdir, point3D_list, ref, comment="none"):
         file.write("property float x\n")
         file.write("property float y\n")
         file.write("property float z\n")
-        #todo handle colors
         file.write("property uchar red\n")
         file.write("property uchar green\n")
         file.write("property uchar blue\n")
@@ -79,22 +78,3 @@ for recon in recons:
 make_ply("./plys/scuffed_campbellprior.ply", all_point3Ds, (LAT_0, LON_0, H_0), "scuffedcampbellprior")
 
 
-
-"""
-Notes:
-Add color to points (they are in colmap point3D objs)
-Add phys sci north to recon
-Basecamp post about alignment
-"""
-"""
-Notes:
--COLMAP find where BA ceres solver is called
--Find implementation of BA ceres solver
--Figure out how to lock things during BA ceres solver 
--Apply
-"""
-
-"""
--Find out how to incorporate azimuth and lat lon for pose priors in reconstructions
--write script to run colmap reconstruction commands 
-"""
