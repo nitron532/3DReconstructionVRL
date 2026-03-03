@@ -1,6 +1,5 @@
 import pycolmap
 from pathlib import Path
-from scipy.spatial.transform import Rotation
 
 def get_recons(proj_path):
     """
@@ -98,3 +97,4 @@ ply_from_point3D_list("./plys/priors extra options/campbell.ply", all_point3Ds, 
 recons = get_recons("./recons/no priors no extra options/chem/no priors no extra options")
 test_recon = recons[0]
 print(get_img_world_coords(test_recon))
+
