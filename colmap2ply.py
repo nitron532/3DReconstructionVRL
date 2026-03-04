@@ -2,6 +2,7 @@ import pycolmap
 from pathlib import Path
 import pymap3d as pm
 import xml.etree.ElementTree as ET
+from pyproj import Transformer
 
 class Parsing:
     #pycolmap
@@ -87,23 +88,12 @@ class CoordConversions:
     def ecef_to_enu_tuple_3D_list(tuple_3D_list, ref):
         """
         in:
-            -point3D_list: list of point3D objs in ecef
+            -tuple_3D_list: list of 3D tuples in ecef
             -ref: lat/lon/alt tuple for reference
         out:
             -enu_list: list of enu tuples
         """
         enu_list = [pm.ecef2enu(point[0], point[1], point[2], ref[0], ref[1], ref[2]) for point in tuple_3D_list]
-        return enu_list
-
-    def geodesic_to_enu_tuple_3D_list(tuple_3D_list, ref):
-        """
-        in:
-            -point3D_list: list of point3D objs in ecef
-            -ref: lat/lon/alt tuple for reference
-        out:
-            -enu_list: list of enu tuples
-        """
-        enu_list = [pm.geodetic2enu(point[0], point[1], point[2], ref[0], ref[1], ref[2], deg=True) for point in tuple_3D_list]
         return enu_list
 
     def ecef_to_enu_point3D(point3D_list, ref):
@@ -116,6 +106,47 @@ class CoordConversions:
         """
         enu_list = [pm.ecef2enu(point3D.xyz[0], point3D.xyz[1], point3D.xyz[2], ref[0], ref[1], ref[2]) for point3D in point3D_list]
         return enu_list
+
+    def ecef_to_web_mercator_tuple_3D_list(tuple_3D_list):
+        """
+        in:
+            -tuple_3D_list: list of 3D tuples in ecef
+        out:
+            -web_mercator_list: list of web mercator + alt tuples
+        """
+        web_mercator_list = []
+        transformer = Transformer.from_crs("EPSG:4978", "EPSG:3857", always_xy=True)
+        for ecef_x, ecef_y, ecef_z in tuple_3D_list:
+            web_mercator_x, web_mercator_y, web_mercator_z = transformer.transform(ecef_x, ecef_y, ecef_z)
+            web_mercator_list.append(transformer.transform(web_mercator_x, web_mercator_y, web_mercator_z))
+        return web_mercator_list
+
+
+    def latlonalt_to_web_mercator_tuple_3D_list(tuple_3D_list):
+        """
+        in:
+            -tuple_3D_list: list of 3D tuples in ecef
+        out:
+            -web_mercator_list: list of web mercator + alt tuples
+        """
+        web_mercator_list = []
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+        for lat, lon, alt in tuple_3D_list:
+            web_mercator_x, web_mercator_y, web_mercator_z = transformer.transform(lon, lat, alt)
+            web_mercator_list.append(transformer.transform(web_mercator_x, web_mercator_y, web_mercator_z))
+        return web_mercator_list
+
+    def latlonalt_to_enu_tuple_3D_list(tuple_3D_list, ref):
+        """
+        in:
+            -point3D_list: list of point3D objs in ecef
+            -ref: lat/lon/alt tuple for reference
+        out:
+            -enu_list: list of enu tuples
+        """
+        enu_list = [pm.geodetic2enu(point[0], point[1], point[2], ref[0], ref[1], ref[2], deg=True) for point in tuple_3D_list]
+        return enu_list
+    
 
 class MakePly:
     def ply_from_tuple_3D_list(output_path, tuple_3D_list, comment="none"):
@@ -169,23 +200,3 @@ class MakePly:
 LAT_0 = 34.41622191
 LON_0 = -119.8456223
 H_0 = 15.223058115078384
-
-
-
-
-"""
-example; change the directories, obviously
-
-"""
-recons = Parsing.get_recons("./recons/priors no extra options/chem")
-
-all_point3Ds = []
-for recon in recons:
-    all_point3Ds = all_point3Ds + Parsing.get_point3Ds(recon)
-MakePly.ply_from_point3D_list("./plys/chemtest.ply", all_point3Ds, (LAT_0, LON_0, H_0), "chemtest")
-
-# recons = get_recons("./recons/priors no extra options/ESB")
-# all_img_world_coords = []
-# for recon in recons:
-#     all_img_world_coords = all_img_world_coords + [tuple(img_coord_tuple[1]) for img_coord_tuple in get_img_world_coords(recon)]
-# ply_from_tuple_3D_list_ecef_to_enu("./plys/priors no extra options/ESB_cams.ply", all_img_world_coords, (LAT_0, LON_0, H_0))
