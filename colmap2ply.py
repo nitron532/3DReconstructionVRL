@@ -101,28 +101,6 @@ def ply_from_point3D_list(output_path, point3D_list, ref, comment="none"):
             r, g, b = point3D.color
             file.write(f"{e} {n} {u} {r} {g} {b}\n")
 
-def ply_from_rigs_list(output_path, rigs_list, ref, comment="none"):
-    """
-    in:
-        -output_path: dir for output ply including ply file name and its extension
-        -pt_list: list of point3D objs
-        -ref: lat/lon/alt tuple for reference
-    out:
-        ply file will be in output_path
-    """
-    with open(output_path, 'w') as file:
-        file.write("ply\n")
-        file.write("format ascii 1.0\n")
-        file.write(f"comment {comment}\n")
-        file.write(f"element vertex {len(rigs_list)}\n")
-        file.write("property float x\n")
-        file.write("property float y\n")
-        file.write("property float z\n")
-        file.write("end_header\n")
-        # for point3D in point3D_list:
-        #     e, n, u = pm.ecef2enu(point3D.xyz[0], point3D.xyz[1], point3D.xyz[2], ref[0], ref[1], ref[2])
-        #     r, g, b = point3D.color
-        #     file.write(f"{e} {n} {u} {r} {g} {b}\n")
 #REPLACE THIS WITH THE LAT/LON/ALT THAT YOU WANT TO BE THE ORIGIN. THIS IS SOME POINT ON CAMPBELL
 LAT_0 = 34.41622191
 LON_0 = -119.8456223
@@ -143,3 +121,4 @@ ply_from_point3D_list("./plys/priors extra options/campbell.ply", all_point3Ds, 
 recons = get_recons("./recons/no priors no extra options/chem/no priors no extra options")
 test_recon = recons[0]
 print(get_img_world_coords(test_recon))
+
