@@ -1,6 +1,8 @@
 import pycolmap
 from pathlib import Path
 import pymap3d as pm
+import xml.etree.ElementTree as ET
+
 
 def get_recons(proj_path):
     """
@@ -12,7 +14,6 @@ def get_recons(proj_path):
     folder_list = [folder for folder in Path(proj_path).iterdir() if folder.is_dir()]
     recon_list = [pycolmap.Reconstruction(f"{proj_path}/{folder.name}") for folder in folder_list]
     return recon_list
-
 
 def get_point3Ds(recon):
     """
@@ -53,7 +54,68 @@ def ecefs_to_enus(point3D_list, ref):
     enu_list = [pm.ecef2enu(point3D.xyz[0], point3D.xyz[1], point3D.xyz[2], ref[0], ref[1], ref[2]) for point3D in point3D_list]
     return enu_list
 
-def ply_from_3D_tuple_list(output_path, tuple_3D_list, ref, comment="none"):
+def tuple_3D_list_from_ref_file(src_path):
+    """
+    in:
+        -src_path: path to ref txt file w/ line formatted as [imgname, x, y, alt]
+    out:
+        -tuple_3D_list: list of emlid xyz tuples
+    """
+    tuple_3D_list = []
+    with open(src_path, "r") as file:
+        for line in file.readlines():
+            line = line.strip().split(" ")
+            tuple_3D_list.append((float(line[1]), float(line[2]), float(line[3])))
+    return tuple_3D_list
+
+def tuple_3D_from_manifest_file(src_path):
+    """
+    in:
+        -src_path: path to manifest xml file
+    out:
+        -tuple_3D_list: list of emlid xyz tuples
+    """
+    tuple_3D_list = []
+    tree = ET.parse(src_path)
+    for photo in tree.getroot().iter('Photo'):
+        match = photo.find('Match')
+        #if has corresponding emlid point
+        matched = match.find('Matched')
+        
+        if matched.text.lower() == 'true':
+            photo_path = photo.find('Path').text
+            photo_name = photo_path[photo_path.rfind('\\')+1:]
+
+            emlidgps = match.find('EmlidGps')
+            latitude = float(emlidgps.find('Latitude').text)
+            longitude = float(emlidgps.find('Longitude').text)
+            orthometric_height = float(emlidgps.find('OrthometricHeight').text)
+            tuple_3D_list.append((latitude, longitude, orthometric_height))
+    return tuple_3D_list
+
+def ply_from_tuple_3D_list_latlonalt_to_enu(output_path, tuple_3D_list, ref, comment="none"):
+    """
+    in:
+        -output_path: dir for output ply including ply file name and its extension
+        -tuple_3D_list: list of 3D tuples
+        -ref: lat/lon/alt tuple for reference
+    out:
+        ply file will be in output_path
+    """
+    with open(output_path, 'w') as file:
+        file.write("ply\n")
+        file.write("format ascii 1.0\n")
+        file.write(f"comment {comment}\n")
+        file.write(f"element vertex {len(tuple_3D_list)}\n")
+        file.write("property float x\n")
+        file.write("property float y\n")
+        file.write("property float z\n")
+        file.write("end_header\n")
+        for tuple_3D in tuple_3D_list:
+            e, n, u = pm.geodetic2enu(tuple_3D[0], tuple_3D[1], tuple_3D[2], ref[0], ref[1], ref[2], deg=True)
+            file.write(f"{e} {n} {u}\n")
+            
+def ply_from_tuple_3D_list_ecef_to_enu(output_path, tuple_3D_list, ref, comment="none"):
     """
     in:
         -output_path: dir for output ply including ply file name and its extension
@@ -107,18 +169,19 @@ LON_0 = -119.8456223
 H_0 = 15.223058115078384
 
 
-"""
-example; change the directories, obviously
+# """
+# example; change the directories, obviously
 
-recons = get_recons("./recons/priors extra options/campbell")
+# recons = get_recons("./recons/priors extra options/campbell")
 
-all_point3Ds = []
+# all_point3Ds = []
+# for recon in recons:
+#     all_point3Ds = all_point3Ds + get_point3Ds(recon)
+# ply_from_point3D_list("./plys/priors extra options/campbell.ply", all_point3Ds, (LAT_0, LON_0, H_0), "campbell")
+# """
+
+recons = get_recons("./recons/priors no extra options/ESB")
+all_img_world_coords = []
 for recon in recons:
-    all_point3Ds = all_point3Ds + get_point3Ds(recon)
-ply_from_point3D_list("./plys/priors extra options/campbell.ply", all_point3Ds, (LAT_0, LON_0, H_0), "campbell")
-"""
-
-recons = get_recons("./recons/no priors no extra options/chem/no priors no extra options")
-test_recon = recons[0]
-print(get_img_world_coords(test_recon))
-
+    all_img_world_coords = all_img_world_coords + [tuple(img_coord_tuple[1]) for img_coord_tuple in get_img_world_coords(recon)]
+ply_from_tuple_3D_list_ecef_to_enu("./plys/priors no extra options/ESB_cams.ply", all_img_world_coords, (LAT_0, LON_0, H_0))
