@@ -3,6 +3,7 @@ from pathlib import Path
 import pymap3d as pm
 import xml.etree.ElementTree as ET
 from pyproj import Transformer
+import numpy as np
 
 class Parsing:
     #pycolmap
@@ -118,9 +119,8 @@ class CoordConversions:
         transformer = Transformer.from_crs("EPSG:4978", "EPSG:3857", always_xy=True)
         for ecef_x, ecef_y, ecef_z in tuple_3D_list:
             web_mercator_x, web_mercator_y, web_mercator_z = transformer.transform(ecef_x, ecef_y, ecef_z)
-            web_mercator_list.append(transformer.transform(web_mercator_x, web_mercator_y, web_mercator_z))
+            web_mercator_list.append((web_mercator_x, web_mercator_y, web_mercator_z))
         return web_mercator_list
-
 
     def latlonalt_to_web_mercator_tuple_3D_list(tuple_3D_list):
         """
@@ -133,7 +133,7 @@ class CoordConversions:
         transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
         for lat, lon, alt in tuple_3D_list:
             web_mercator_x, web_mercator_y, web_mercator_z = transformer.transform(lon, lat, alt)
-            web_mercator_list.append(transformer.transform(web_mercator_x, web_mercator_y, web_mercator_z))
+            web_mercator_list.append((web_mercator_x, web_mercator_y, web_mercator_z))
         return web_mercator_list
 
     def latlonalt_to_enu_tuple_3D_list(tuple_3D_list, ref):
@@ -147,6 +147,21 @@ class CoordConversions:
         enu_list = [pm.geodetic2enu(point[0], point[1], point[2], ref[0], ref[1], ref[2], deg=True) for point in tuple_3D_list]
         return enu_list
     
+    def web_mercator_scale_and_define_origin(web_mercator_list, origin, scale_factor):
+        """
+        in:
+            -web_mercator_list: list of 3D web mercator coord tuples
+            -origin: 3D lon lat alt tuple to be origin
+            -scale_factor: float for scaling
+        out:
+            -output: scaled and shifted web_mercator_list
+        """
+        output = []
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+        origin_x, origin_y, origin_z = transformer.transform(origin[1], origin[0], origin[2])
+        for x, y, z in web_mercator_list:
+            output.append(((x - origin_x) * scale_factor, (y - origin_y) * scale_factor, (z - origin_z) * scale_factor))
+        return output
 
 class MakePly:
     def ply_from_tuple_3D_list(output_path, tuple_3D_list, comment="none"):
@@ -170,7 +185,7 @@ class MakePly:
             for x, y, z in tuple_3D_list:
                 file.write(f"{x} {y} {z}\n")
             
-    def ply_from_point3D_list(output_path, point3D_list, ref, comment="none"):
+    def ply_from_point3D_list(output_path, point3D_list, comment="none"):
         """
         in:
             -output_path: dir for output ply including ply file name and its extension
@@ -192,11 +207,41 @@ class MakePly:
             file.write("property uchar blue\n")
             file.write("end_header\n")
             for point3D in point3D_list:
-                e, n, u = pm.ecef2enu(point3D.xyz[0], point3D.xyz[1], point3D.xyz[2], ref[0], ref[1], ref[2])
+                x, y, z = point3D.xyz
                 r, g, b = point3D.color
-                file.write(f"{e} {n} {u} {r} {g} {b}\n")
+                file.write(f"{x} {y} {z} {r} {g} {b}\n")
 
 #REPLACE THIS WITH THE LAT/LON/ALT THAT YOU WANT TO BE THE ORIGIN. THIS IS SOME POINT ON CAMPBELL
 LAT_0 = 34.41622191
 LON_0 = -119.8456223
 H_0 = 15.223058115078384
+
+
+all_point3Ds = []
+all_xyzs = []
+recons = Parsing.get_recons("./recons/priors no extra options/campbell")
+for recon in recons:
+    all_point3Ds = all_point3Ds + Parsing.get_point3Ds(recon)
+for point3D in all_point3Ds:
+    all_xyzs.append(tuple(point3D.xyz))
+all_mercator_web = CoordConversions.ecef_to_web_mercator_tuple_3D_list(all_xyzs)
+all_mercator_web = CoordConversions.web_mercator_scale_and_define_origin(all_mercator_web, (LAT_0, LON_0, H_0), 1)
+for a in range(len(all_point3Ds)):
+    all_point3Ds[a].xyz = all_mercator_web[a]
+MakePly.ply_from_point3D_list("./plys/WebMercator/priors no extra options/campbell.ply", all_point3Ds, "campbell")
+
+#getting all pt 3ds
+# all_point3Ds = []
+# for recon in recons:
+#     all_point3Ds = all_point3Ds + Parsing.get_point3Ds(recon)
+# all_point3Ds = CoordConversions.ecef_to_enu_point3D(all_point3Ds, (LAT_0, LON_0, H_0))
+# MakePly.ply_from_point3D_list("./plys/campbelllocked.ply", all_point3Ds, (LAT_0, LON_0, H_0), "campbelllocked")
+
+#getting all cam coords
+# all_img_world_coords = []
+# for recon in recons:
+#     all_img_world_coords = all_img_world_coords + [tuple(img_coord_tuple[1]) for img_coord_tuple in get_img_world_coords(recon)]
+# ply_from_tuple_3D_list_ecef_to_enu("./plys/priors no extra options/ESB_cams.ply", all_img_world_coords, (LAT_0, LON_0, H_0))
+
+all_point3Ds = []
+
