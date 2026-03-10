@@ -7,6 +7,7 @@ DATABASE_PATH = f"{PARENT_DIR}/data/features.db"
 IMG_PATH = f"{PARENT_DIR}/data/imgs"
 SPARSE_OUTPUT_PATH = f"{PARENT_DIR}/recons/no priors no extra options"
 ALIGNED_OUTPUT_PATH = f"{PARENT_DIR}/aligned recons/no priors no extra options"
+COLMAP_PATH = "colmap"
 
 def setup_directory():
     subprocess.run(["mkdir", f"{PARENT_DIR}/data"])
@@ -16,18 +17,18 @@ def setup_directory():
     subprocess.run(["touch", DATABASE_PATH])
 
 def feature_extraction():
-    subprocess.run(["colmap", "feature_extractor", 
+    subprocess.run([COLMAP_PATH, "feature_extractor", 
                             "--database_path", DATABASE_PATH,
                             "--image_path", IMG_PATH],
                             stdout=None)
 def feature_matching():
-    subprocess.run(["colmap", "exhaustive_matcher", 
+    subprocess.run([COLMAP_PATH, "exhaustive_matcher", 
                             "--database_path", DATABASE_PATH],
                             stdout=None)
 def mapper():
     subprocess.run(["mkdir", f"{SPARSE_OUTPUT_PATH}"], 
                         stdout=None)
-    subprocess.run(["colmap", "mapper",
+    subprocess.run([COLMAP_PATH, "mapper",
                             "--database_path", DATABASE_PATH,
                             "--image_path", IMG_PATH,
                             "--output_path", f"{SPARSE_OUTPUT_PATH}"],
@@ -35,7 +36,7 @@ def mapper():
 def pose_prior_mapper():
     subprocess.run(["mkdir", f"{SPARSE_OUTPUT_PATH}"], 
                         stdout=None)
-    subprocess.run(["colmap", "pose_prior_mapper",
+    subprocess.run([COLMAP_PATH, "pose_prior_mapper",
                             "--database_path", DATABASE_PATH,
                             "--image_path", IMG_PATH,
                             "--output_path", f"{SPARSE_OUTPUT_PATH}",
@@ -50,7 +51,7 @@ def model_aligner(ref_images_dir):#relative to parent dir and no ./ at beginning
     for name in dirs:
         subprocess.run(["mkdir", f"{ALIGNED_OUTPUT_PATH}/{name}"], 
                         stdout=None)
-        subprocess.run(["colmap", "model_aligner",
+        subprocess.run([COLMAP_PATH, "model_aligner",
                         "--input_path", f"{SPARSE_OUTPUT_PATH}/{name}", 
                         "--output_path", f"{ALIGNED_OUTPUT_PATH}/{name}", 
                         "--ref_images_path", f"{PARENT_DIR}/{ref_images_dir}", 
@@ -59,4 +60,5 @@ def model_aligner(ref_images_dir):#relative to parent dir and no ./ at beginning
                         "--alignment_max_error", "3.0"],
                         stdout=None)
     return outputs
+
 
