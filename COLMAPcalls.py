@@ -32,7 +32,7 @@ def mapper():
                             "--image_path", IMG_PATH,
                             "--output_path", f"{SPARSE_OUTPUT_PATH}"],
                             stdout=None)
-def pose_prior_mapper(ref_images_dir):
+def pose_prior_mapper():
     subprocess.run(["mkdir", f"{SPARSE_OUTPUT_PATH}"], 
                         stdout=None)
     subprocess.run(["colmap", "pose_prior_mapper",
@@ -59,3 +59,4 @@ def model_aligner(ref_images_dir):#relative to parent dir and no ./ at beginning
                         "--alignment_max_error", "3.0"],
                         stdout=None)
     return outputs
+
